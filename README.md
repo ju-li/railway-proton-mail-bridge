@@ -1,5 +1,7 @@
 # railway-proton-mail-bridge
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/proton-mail-bridge?referralCode=HxrUPo&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
 Run [hydroxide](https://codeberg.org/emersion/hydroxide), an open-source Proton Mail bridge, on [Railway](https://railway.com). It exposes your Proton Mail account over IMAP, SMTP and CardDAV.
 
 The Dockerfile builds hydroxide from the latest Codeberg source. Older builds from the GitHub mirror can't pass Proton's CAPTCHA check.
@@ -28,6 +30,8 @@ base64 -i ~/Library/Application\ Support/hydroxide/auth.json
 ```
 
 ## 2. Deploy on Railway
+
+The **Deploy on Railway** button above sets up the service and the `/data` volume and asks for the variables below. To set it up by hand instead:
 
 1. Create a service from this repo.
 2. Attach a volume mounted at `/data`. hydroxide saves refreshed tokens there.
