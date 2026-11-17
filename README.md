@@ -41,7 +41,11 @@ The **Deploy on Railway** button above sets up the service and the `/data` volum
 | --- | --- | --- |
 | `HYDROXIDE_AUTH_JSON_B64` | yes | The base64 output from step 1. Used only when `/data` has no `auth.json` yet. |
 | `HYDROXIDE_AUTH_FORCE` | no | Set to `1` for one deploy to overwrite the stored `auth.json` (for example after logging in again). Remove it afterwards. |
-| `PORT` | no | CardDAV port, default `8080`. |
+| `SMTP_PORT` | no | SMTP port, default `1025`. |
+| `IMAP_PORT` | no | IMAP port, default `1143`. |
+| `CARDDAV_PORT` | no | CardDAV port, default `8080`. |
+
+Railway's automatic `PORT` variable is ignored, because it can clash with the mail ports.
 
 Run a single replica only.
 
@@ -51,11 +55,11 @@ Run a single replica only.
 | --- | --- | --- |
 | IMAP | 1143 | your Proton address and the bridge password |
 | SMTP | 1025 | your Proton address and the bridge password |
-| CardDAV | `$PORT` (8080) | your Proton address and the bridge password |
+| CardDAV | 8080 | your Proton address and the bridge password |
 
 - **Private networking (recommended):** other services in the same Railway project connect to `<service-name>.railway.internal`.
 - **Public IMAP/SMTP:** these need a Railway TCP proxy for each port. hydroxide accepts plaintext logins when no TLS certificate is configured, so don't expose these ports publicly without TLS.
-- **CardDAV** is HTTP and can use a normal Railway public domain, which provides HTTPS.
+- **CardDAV** is HTTP and can use a normal Railway public domain, which provides HTTPS. Set the domain's target port to `8080`.
 
 ## Several accounts
 

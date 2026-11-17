@@ -11,6 +11,15 @@ if [ -n "$HYDROXIDE_AUTH_JSON_B64" ] && { [ ! -s "$AUTH" ] || [ "$HYDROXIDE_AUTH
 fi
 [ -s "$AUTH" ] || { echo "No auth.json: set HYDROXIDE_AUTH_JSON_B64" >&2; exit 1; }
 
+# Railway injects PORT automatically and it can clash with the mail ports,
+# so each listener has its own variable instead.
+SMTP_PORT="${SMTP_PORT:-1025}"
+IMAP_PORT="${IMAP_PORT:-1143}"
+CARDDAV_PORT="${CARDDAV_PORT:-8080}"
+
 # An empty host means listen on all interfaces, IPv4 and IPv6 (Railway private network)
-exec hydroxide -imap-host "" -smtp-host "" -carddav-host "" \
-  -carddav-port "${PORT:-8080}" serve
+exec hydroxide \
+  -smtp-host "" -smtp-port "$SMTP_PORT" \
+  -imap-host "" -imap-port "$IMAP_PORT" \
+  -carddav-host "" -carddav-port "$CARDDAV_PORT" \
+  serve
