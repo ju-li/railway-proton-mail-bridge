@@ -34,17 +34,46 @@ The image builds hydroxide from the latest Codeberg source, which includes suppo
 
 ## Quick start
 
-### 1. Log in on your own machine
+Proton requires an interactive login and usually a CAPTCHA, so steps 1 to 3 run on your own computer. After that, everything runs on Railway.
 
-Proton requires an interactive login and usually a CAPTCHA, so this step can't run on Railway. You need [Go 1.26+](https://go.dev/dl/).
+### 1. Install Go and Git
+
+You need [Go](https://go.dev/dl/) **1.26 or newer** and [Git](https://git-scm.com/downloads).
+
+| OS | Install |
+| --- | --- |
+| 🍎 **macOS** | `brew install go git` using [Homebrew](https://brew.sh), or the installer from [go.dev/dl](https://go.dev/dl/) |
+| 🐧 **Linux** | Git from your package manager. Distro Go packages are often too old, so use the tarball from [go.dev/dl](https://go.dev/dl/) if `go version` shows less than 1.26. |
+| 🪟 **Windows** | `winget install --id GoLang.Go` and `winget install --id Git.Git`, or the installers from [go.dev/dl](https://go.dev/dl/) and [git-scm.com](https://git-scm.com/downloads). Open a new terminal afterwards. |
+
+Check with `go version`.
+
+### 2. Log in on your own machine
+
+**🍎 macOS and 🐧 Linux** (Terminal):
 
 ```bash
 git clone https://codeberg.org/emersion/hydroxide.git
-cd hydroxide && go build ./cmd/hydroxide
+cd hydroxide
+go build ./cmd/hydroxide
 ./hydroxide auth <your-proton-address>
 ```
 
-1. Enter your Proton password.
+**🪟 Windows** (PowerShell):
+
+```powershell
+git clone https://codeberg.org/emersion/hydroxide.git
+cd hydroxide
+go build ./cmd/hydroxide
+.\hydroxide.exe auth <your-proton-address>
+```
+
+> [!NOTE]
+> On Windows, use PowerShell, Command Prompt or Windows Terminal. Git Bash can't read the hidden password prompt, so the login fails there.
+
+Then follow the prompts:
+
+1. Enter your Proton password. Nothing appears as you type.
 2. If a `verify.proton.me` link appears, open it, solve the CAPTCHA, then press **Enter**.
 3. If 2FA is on, enter the code from your authenticator app. Security keys aren't supported.
 4. Copy the **bridge password** it prints.
@@ -52,19 +81,37 @@ cd hydroxide && go build ./cmd/hydroxide
 > [!IMPORTANT]
 > The bridge password is what your mail clients log in with. hydroxide doesn't store it and can't show it again. If you lose it, run `hydroxide auth` again.
 
-### 2. Encode the session
+### 3. Encode the session
+
+hydroxide saved your session to `auth.json`. Encode it as a single line of base64:
+
+| OS | `auth.json` location |
+| --- | --- |
+| 🍎 macOS | `~/Library/Application Support/hydroxide/auth.json` |
+| 🐧 Linux | `~/.config/hydroxide/auth.json` (or `$XDG_CONFIG_HOME/hydroxide/auth.json`) |
+| 🪟 Windows | `%APPDATA%\hydroxide\auth.json` |
+
+**🍎 macOS**: copies the result to the clipboard
 
 ```bash
-# Linux
-base64 -w0 ~/.config/hydroxide/auth.json
+base64 -i ~/Library/Application\ Support/hydroxide/auth.json | pbcopy
+```
 
-# macOS
-base64 -i ~/Library/Application\ Support/hydroxide/auth.json
+**🐧 Linux**: prints the result. Select it and copy.
+
+```bash
+base64 -w0 "${XDG_CONFIG_HOME:-$HOME/.config}/hydroxide/auth.json"; echo
+```
+
+**🪟 Windows** (PowerShell): copies the result to the clipboard
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:APPDATA\hydroxide\auth.json")) | Set-Clipboard
 ```
 
 The file is encrypted with the bridge password, so it's useless without it.
 
-### 3. Deploy
+### 4. Deploy
 
 Click **Deploy on Railway** above and paste the output into `HYDROXIDE_AUTH_JSON_B64`. The template creates the service and the `/data` volume.
 
@@ -124,7 +171,7 @@ A trusted certificate such as Let's Encrypt needs a domain you control. You can'
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HYDROXIDE_AUTH_JSON_B64` | **required** | Base64 of `auth.json` from [step 2](#2-encode-the-session). Used only when `/data` has no session yet. |
+| `HYDROXIDE_AUTH_JSON_B64` | **required** | Base64 of `auth.json` from [step 3](#3-encode-the-session). Used only when `/data` has no session yet. |
 | `HYDROXIDE_AUTH_FORCE` | unset | Set to `1` for one deploy to replace the stored session, for example after logging in again. Remove it afterwards. |
 | `SMTP_PORT` | `1025` | SMTP port. |
 | `IMAP_PORT` | `1143` | IMAP port. |
@@ -141,7 +188,21 @@ Railway's automatic `PORT` variable is ignored, because it can clash with the ma
 <details>
 <summary><code>[9001] For security reasons, please complete CAPTCHA</code> when running <code>hydroxide auth</code></summary>
 
-Your hydroxide build is too old to handle Proton's CAPTCHA. `go install github.com/emersion/hydroxide/...` installs an outdated version from the GitHub mirror. Build from Codeberg as shown in [step 1](#1-log-in-on-your-own-machine).
+Your hydroxide build is too old to handle Proton's CAPTCHA. `go install github.com/emersion/hydroxide/...` installs an outdated version from the GitHub mirror. Build from Codeberg as shown in [step 2](#2-log-in-on-your-own-machine).
+
+</details>
+
+<details>
+<summary><code>open /dev/tty</code> error on Windows</summary>
+
+You ran `hydroxide auth` in Git Bash, which can't show the hidden password prompt. Run it in PowerShell, Command Prompt or Windows Terminal instead.
+
+</details>
+
+<details>
+<summary><code>go: command not found</code> or <code>'go' is not recognized</code></summary>
+
+The terminal was opened before Go was installed. Open a new terminal window. On Linux, also check that `/usr/local/go/bin` is on your `PATH`, as described on [go.dev/doc/install](https://go.dev/doc/install).
 
 </details>
 
