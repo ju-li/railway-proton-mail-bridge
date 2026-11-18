@@ -113,7 +113,12 @@ The file is encrypted with the bridge password, so it's useless without it.
 
 ### 4. Deploy
 
-Click **Deploy on Railway** above and paste the output into `HYDROXIDE_AUTH_JSON_B64`. The template creates the service and the `/data` volume.
+Click **Deploy on Railway** above and fill in two variables:
+
+- `HYDROXIDE_AUTH_JSON_B64`: the output from step 3.
+- `HYDROXIDE_BRIDGE_PASS`: the bridge password from step 2. It keeps folders loaded for IMAP clients. See [why IMAP needs the bridge password](#why-imap-needs-the-bridge-password).
+
+The template creates the service and the `/data` volume.
 
 When the deploy logs show these lines, the bridge is ready:
 
@@ -122,6 +127,8 @@ Seeded /data/hydroxide/auth.json from HYDROXIDE_AUTH_JSON_B64
 SMTP server listening on :1025
 IMAP server listening on :1143
 CardDAV server listening on :8080
+Synchronizing mailbox INBOX...
+keepalive: you@proton.me: loaded 8 of 8 folders, staying connected
 ```
 
 <details>
@@ -129,7 +136,7 @@ CardDAV server listening on :8080
 
 1. Create a service from this repo.
 2. Attach a volume mounted at `/data`.
-3. Set `HYDROXIDE_AUTH_JSON_B64`, plus any of the optional [variables](#configuration).
+3. Set `HYDROXIDE_AUTH_JSON_B64` and `HYDROXIDE_BRIDGE_PASS`, plus any of the optional [variables](#configuration).
 4. Keep the service at **one replica**.
 
 </details>
@@ -172,6 +179,7 @@ A trusted certificate such as Let's Encrypt needs a domain you control. You can'
 | Variable | Default | Description |
 | --- | --- | --- |
 | `HYDROXIDE_AUTH_JSON_B64` | **required** | Base64 of `auth.json` from [step 3](#3-encode-the-session). Used only when `/data` has no session yet. |
+| `HYDROXIDE_BRIDGE_PASS` | recommended | The bridge password. Lets the built-in keep-alive session load your folders so IMAP clients see your mail. See [below](#why-imap-needs-the-bridge-password). |
 | `HYDROXIDE_AUTH_FORCE` | unset | Set to `1` for one deploy to replace the stored session, for example after logging in again. Remove it afterwards. |
 | `SMTP_PORT` | `1025` | SMTP port. |
 | `IMAP_PORT` | `1143` | IMAP port. |
@@ -182,6 +190,23 @@ Railway's automatic `PORT` variable is ignored, because it can clash with the ma
 **Several accounts:** `auth.json` holds one entry per account. Run `hydroxide auth` for each account on the same machine, then encode the file once. Each account has its own bridge password.
 
 **Token refresh:** hydroxide refreshes Proton tokens itself and saves them to `/data`. That's why the env var is only read on first boot.
+
+### Why IMAP needs the bridge password
+
+hydroxide only builds a folder's message index after a client fetches or searches that folder. It also forgets an account's state when the account's last IMAP session logs out. Until then it reports the folder's next message number (UIDNEXT) as 1, meaning empty.
+
+Many clients and sync services poll: they log in, read each folder's status, then log out. They see UIDNEXT 1, conclude there's nothing to download, and never fetch. So they show your folders with message counts but no emails.
+
+To avoid this, the container runs a small helper ([`keepalive/`](keepalive/main.go)) when `HYDROXIDE_BRIDGE_PASS` is set:
+
+1. It logs in to the local IMAP server once for each account in `auth.json`.
+2. It opens every folder once, which builds the indexes.
+3. It stays connected, so hydroxide keeps the account loaded and up to date from Proton's events.
+
+> [!CAUTION]
+> With `HYDROXIDE_BRIDGE_PASS` set, the Railway variables hold both `auth.json` and the key that decrypts it, which includes your Proton password. Anyone who can read this service's variables could take over your Proton account. Limit who has access to the Railway project.
+
+If you have several accounts, they all need the same bridge password for the helper to keep them loaded. Accounts whose password doesn't match are retried and logged, and don't affect the others.
 
 ## Troubleshooting
 
@@ -217,6 +242,24 @@ Two listeners are set to the same port. Check that `SMTP_PORT`, `IMAP_PORT` and 
 <summary><code>No auth.json: set HYDROXIDE_AUTH_JSON_B64</code></summary>
 
 The variable is empty and the volume has no session. Set `HYDROXIDE_AUTH_JSON_B64` and check that the volume is mounted at `/data`.
+
+</details>
+
+<details>
+<summary>IMAP shows folders but no emails</summary>
+
+Set `HYDROXIDE_BRIDGE_PASS` and redeploy. See [why IMAP needs the bridge password](#why-imap-needs-the-bridge-password).
+
+Check the deploy logs for `keepalive: … loaded N of N folders`. If they show `keepalive: … login failed`, the variable doesn't match the bridge password for that account.
+
+A sync service that already recorded the folders as empty may need the mailbox removed and added again.
+
+</details>
+
+<details>
+<summary>The logs show "logged in via IMAP" and "logged out via IMAP" every few minutes</summary>
+
+That's normal for clients that poll. hydroxide writes all of its logs to stderr, so Railway labels them as errors.
 
 </details>
 

@@ -3,11 +3,14 @@ RUN apk add --no-cache git
 ARG HYDROXIDE_REF=master
 RUN git clone https://codeberg.org/emersion/hydroxide.git /src && git -C /src checkout "$HYDROXIDE_REF"
 WORKDIR /src
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /hydroxide ./cmd/hydroxide
+# Build the keep-alive helper inside the hydroxide module so it shares its go-imap version.
+COPY keepalive/ /src/cmd/keepalive/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /hydroxide ./cmd/hydroxide \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /hydroxide-keepalive ./cmd/keepalive
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates
-COPY --from=build /hydroxide /usr/local/bin/hydroxide
+COPY --from=build /hydroxide /hydroxide-keepalive /usr/local/bin/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENV XDG_CONFIG_HOME=/data

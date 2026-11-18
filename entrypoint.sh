@@ -13,9 +13,18 @@ fi
 
 # Railway injects PORT automatically and it can clash with the mail ports,
 # so each listener has its own variable instead.
-SMTP_PORT="${SMTP_PORT:-1025}"
-IMAP_PORT="${IMAP_PORT:-1143}"
-CARDDAV_PORT="${CARDDAV_PORT:-8080}"
+export SMTP_PORT="${SMTP_PORT:-1025}"
+export IMAP_PORT="${IMAP_PORT:-1143}"
+export CARDDAV_PORT="${CARDDAV_PORT:-8080}"
+
+# Keep one IMAP session open so hydroxide indexes the folders and keeps them
+# loaded; without it, clients that poll see empty folders. Needs the bridge
+# password. It waits for the IMAP server below to start.
+if [ -n "$HYDROXIDE_BRIDGE_PASS" ]; then
+  hydroxide-keepalive &
+else
+  echo "HYDROXIDE_BRIDGE_PASS is not set: IMAP clients that poll may see empty folders (see README)" >&2
+fi
 
 # An empty host means listen on all interfaces, IPv4 and IPv6 (Railway private network)
 exec hydroxide \
